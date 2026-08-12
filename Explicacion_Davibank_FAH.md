@@ -1,6 +1,62 @@
 # Interpretación de la Configuración y Pipeline SQL de Davibank (FAH)
 
-Este documento contiene la interpretación detallada del archivo `config_davibank_fah.py` (el archivo de configuración del DAG ejecutor) y la secuencia de scripts SQL que componen el flujo de datos para **DAVIBANK_FAH**.
+Este documento contiene la interpretación detallada del archivo `config_davibank_fah.py` (el archivo de configuración del DAG ejecutor), el flujo lógico del proceso representado mediante un diagrama de flujo, y la secuencia de scripts SQL que componen el pipeline de datos para **DAVIBANK_FAH**.
+
+---
+
+## 📊 Diagrama de Flujo del Proceso
+
+El siguiente diagrama en formato **Mermaid** describe paso a paso el flujo de datos y orquestación desde la validación de dependencias externas hasta la persistencia final y generación de reportes listos para almacenar en GCS:
+
+```mermaid
+graph TD
+    %% Estilos de los nodos
+    classDef orq fill:#d4e1f5,stroke:#1a5f7a,stroke-width:2px;
+    classDef sql fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef ext fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef rep fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px;
+
+    %% Flujo de Orquestación
+    subgraph Orquestación y Control (config_davibank_fah.py)
+        A[Inicio del Proceso Diario - @daily] --> B[Revisar Dependencias:<br>datalake2-produccion.par_temporal_estandarizacion.DAVIBANK_FAH]:::orq
+        B -->|Cumplido| C[Orquestador lanza DAG Ejecutor con params_escritura]:::orq
+    end
+
+    %% Flujo de Scripts SQL
+    subgraph Pipeline de Datos SQL (Agente_Producto_Datos/Scripts/)
+        C --> D[1_variables.sql:<br>Declara variables fecha_proceso y libro BIFRS_DAV]:::sql
+        D --> E[2_filtrado.sql:<br>Filtra movimientos diarios de trf_davibank_fah para fecha_proceso]:::sql
+        E --> F[work_davibank_filtrado]:::ext
+
+        F --> G[3_transformacion_1.sql:<br>Calcula reproceso desde STG_LOG_PROCESOS_FAH_PRUEBA]:::sql
+        G --> H[Unpivot de Débitos y Créditos en base a naturaleza]:::sql
+        H --> I[Generar contador_linea y codigo_transaccion único]:::sql
+        I --> J[Homologar cuentas con mnl_homologaciones_fah]:::sql
+        J --> K[work_davibank_transformacion_1]:::ext
+
+        K --> L[4_transformacion_2.sql:<br>Balanceo de Archivos < 150,000 registros]:::sql
+        L --> M[Asignar grupo_salida por transacción]:::sql
+        M --> N[work_davibank_transformacion_2]:::ext
+
+        N --> O[5_select_final.sql:<br>Persistencia final de datos balanceados]:::sql
+        O --> P[Tabla Destino:<br>cur_administrativa.DAVIBANK_FAH]:::ext
+    end
+
+    %% Flujo del Generador de Reportes
+    subgraph Generador de Reportes (Generador_Reportes_Fah/)
+        P --> Q[reporte_fah.py:<br>Lee parametrización y metadata de BigQuery]:::rep
+        Q --> R[Extrae datos agrupados por grupo_salida]:::rep
+        R --> S[Genera archivos locales:<br>Metadata, Header, Lines y Control]:::rep
+        S --> T[Comprime archivos en ZIP maestro por reproceso]:::rep
+        T --> U[Sube ZIP final a Google Cloud Storage - GCS]:::rep
+        U --> V[Actualiza Log de Procesos en LOG_PROCESOS_FAH]:::rep
+    end
+
+    class A,B,C orq;
+    class D,E,G,H,I,J,L,M,O sql;
+    class F,K,N,P ext;
+    class Q,R,S,T,U,V rep;
+```
 
 ---
 
