@@ -10,7 +10,7 @@ from datetime import datetime
 # 2. Configuracion
 ## Parametros generales
 nombre_proyecto = "STG_CAI_GL_FAH" # Debe ser el mismo nombre de la tabla a crear
-key_sesion = nombre_proyecto # usaremos una sesion con el mismo nombre del dag 
+key_sesion = nombre_proyecto # usaremos una sesion con el mismo nombre del dag
 ruta_principal = '/home/airflow/gcs/data/cdo'
 ruta_queries = f'construcciones/{nombre_proyecto}'
 # feat 2025-09-25: CreaciÃ³n de la funcionalidad de envÃ­o de correos.
@@ -44,7 +44,7 @@ etiquetas_generales = {
     "construccion" : nombre_proyecto,
     "tipo_de_proyecto" : "hub", # hub / caso de uso / proyecto
     "responsable" : "Agente Woombat",
-    # Agregar valor de periodicidad de ejecuciÃ³n: "diaria", "semanal", "mensual", "anual", "otro".  
+    # Agregar valor de periodicidad de ejecuciÃ³n: "diaria", "semanal", "mensual", "anual", "otro".
     "periodicidad" : "diario",
     # NO MODIFICAR LOS SIGUIENTES VALORES.
     "escritura" : parametros_escritura["tipo_escritura"].name.lower(),
@@ -61,7 +61,7 @@ def definir_parametros_ejecucion(**context):
     }
     return parametros_ejecucion
 
-# DEFINICION DE CONTROLES POR ETAPA 
+# DEFINICION DE CONTROLES POR ETAPA
 controles_etapa = {
     'definir_parametros': {'pos': [], 'pre': []},
     'filtrado': {'pos': [], 'pre': []},
@@ -106,9 +106,9 @@ parametros_dag_ejecutor = {
         "key_sesion" : key_sesion,
         "ruta_principal" : ruta_principal,
         "ruta_queries" : ruta_queries,
-    }, 
-    "parametros_escritura" : parametros_escritura, 
-    "queries" : queries, 
+    },
+    "parametros_escritura" : parametros_escritura,
+    "queries" : queries,
     "controles_etapa" : controles_etapa,
     "etiquetas_generales" : etiquetas_generales,
     "definir_parametros_ejecucion" : definir_parametros_ejecucion,
